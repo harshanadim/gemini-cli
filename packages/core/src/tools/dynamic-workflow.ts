@@ -15,7 +15,10 @@ import { type MessageBus } from '../confirmation-bus/message-bus.js';
 import { type AgentLoopContext } from '../config/agent-loop-context.js';
 import { GeminiWorkflowContext } from '../workflow/context.js';
 import { WorkflowSandbox } from '../workflow/sandbox.js';
-import { DYNAMIC_WORKFLOW_TOOL_NAME } from './tool-names.js';
+import {
+  DYNAMIC_WORKFLOW_TOOL_NAME,
+  DYNAMIC_WORKFLOW_DEFINITION,
+} from './tool-names.js';
 
 import { randomUUID } from 'node:crypto';
 import { MessageBusType, type Message } from '../confirmation-bus/types.js';
@@ -48,6 +51,17 @@ export class DynamicWorkflowTool extends BaseDeclarativeTool<
       },
       messageBus,
     );
+  }
+
+  override getSchema(modelId?: string) {
+    const override = DYNAMIC_WORKFLOW_DEFINITION.overrides?.(modelId!);
+    if (override) {
+      return {
+        ...DYNAMIC_WORKFLOW_DEFINITION.base,
+        ...override,
+      };
+    }
+    return DYNAMIC_WORKFLOW_DEFINITION.base;
   }
 
   protected createInvocation(

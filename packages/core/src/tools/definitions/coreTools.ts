@@ -288,3 +288,10 @@ export const LIST_MCP_RESOURCES_DEFINITION: ToolDefinition = {
   },
   overrides: (modelId) => getToolSet(modelId).list_mcp_resources,
 };
+
+export const DYNAMIC_WORKFLOW_DEFINITION: ToolDefinition = {
+  get base() {
+    return DEFAULT_LEGACY_SET.run_dynamic_workflow;
+  },
+  overrides: (modelId) => getToolSet(modelId).run_dynamic_workflow,
+};
