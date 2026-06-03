@@ -226,34 +226,53 @@ export interface SubagentActivityMessage {
 
 export interface WorkflowPhaseMessage {
   type: MessageBusType.WORKFLOW_PHASE;
+  workflowId: string;
+  parentId?: string;
   data: { title: string };
 }
 
 export interface WorkflowLogMessage {
   type: MessageBusType.WORKFLOW_LOG;
+  workflowId: string;
+  parentId?: string;
   data: { message: string };
 }
 
 export interface WorkflowSpawnAgentMessage {
   type: MessageBusType.WORKFLOW_SPAWN_AGENT;
-  data: { label?: string; status: string };
+  workflowId: string;
+  parentId?: string;
+  data: { agentId: string; label?: string; status: string };
 }
 
 export interface WorkflowAgentEndMessage {
   type: MessageBusType.WORKFLOW_AGENT_END;
-  data: { label?: string; status: string; result?: unknown; error?: string };
+  workflowId: string;
+  parentId?: string;
+  data: {
+    agentId: string;
+    label?: string;
+    status: string;
+    result?: unknown;
+    error?: string;
+  };
 }
 
 export interface WorkflowStartMessage {
   type: MessageBusType.WORKFLOW_START;
+  workflowId: string;
+  parentId?: string;
 }
 
 export interface WorkflowEndMessage {
   type: MessageBusType.WORKFLOW_END;
+  workflowId: string;
+  parentId?: string;
 }
 
 export interface WorkflowCancelRequestMessage {
   type: MessageBusType.WORKFLOW_CANCEL_REQUEST;
+  workflowId?: string;
 }
 
 export type Message =

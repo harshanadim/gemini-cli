@@ -45,15 +45,14 @@ describe('GeminiWorkflowContext', () => {
   });
 
   it('should allow spawning agents up to the limit', async () => {
-    const context = new GeminiWorkflowContext(mockContext);
+    const context = new GeminiWorkflowContext(mockContext, 'w1');
 
     await expect(context.agent('test 1')).resolves.toBe('mocked result');
     await expect(context.agent('test 2')).resolves.toBe('mocked result');
   });
 
   it('should throw an error when exceeding the agent limit', async () => {
-    const context = new GeminiWorkflowContext(mockContext);
-
+    const context = new GeminiWorkflowContext(mockContext, 'w1');
     await context.agent('test 1');
     await context.agent('test 2');
 

@@ -9,22 +9,34 @@ import { useConfig } from '../contexts/ConfigContext.js';
 import { MessageBusType } from '@google/gemini-cli-core/src/confirmation-bus/types.js';
 import type { Message } from '@google/gemini-cli-core/src/confirmation-bus/types.js';
 
-export interface WorkflowAgentTask {
-  id: number;
+export interface AgentTaskNode {
+  id: string; // The workflowId_agentId or just agentId
   label: string;
   status: 'running' | 'completed' | 'error';
   error?: string;
+  childWorkflowId?: string; // If this agent spawned a sub-workflow
+  displayId: number;
 }
 
-export interface WorkflowPhase {
+export interface PhaseNode {
+  id: string;
   title: string;
-  agents: WorkflowAgentTask[];
   logs: string[];
+  agentIds: string[];
+}
+
+export interface WorkflowInstanceNode {
+  id: string;
+  phaseIds: string[];
+  status: 'running' | 'completed' | 'error';
 }
 
 export interface WorkflowState {
   isActive: boolean;
-  phases: WorkflowPhase[];
+  rootWorkflowId?: string;
+  workflows: Record<string, WorkflowInstanceNode>;
+  phases: Record<string, PhaseNode>;
+  agents: Record<string, AgentTaskNode>;
   agentCounter: number;
 }
 
@@ -34,126 +46,172 @@ export function useWorkflowProgress() {
 
   const [state, setState] = useState<WorkflowState>({
     isActive: false,
-    phases: [],
+    workflows: {},
+    phases: {},
+    agents: {},
     agentCounter: 0,
   });
 
   const reset = useCallback(() => {
-    setState({ isActive: false, phases: [], agentCounter: 0 });
+    setState({
+      isActive: false,
+      workflows: {},
+      phases: {},
+      agents: {},
+      agentCounter: 0,
+    });
   }, []);
 
   useEffect(() => {
     const handleMessage = (message: Message) => {
       setState((prev) => {
-        const newState = { ...prev };
+        const s = {
+          ...prev,
+          workflows: { ...prev.workflows },
+          phases: { ...prev.phases },
+          agents: { ...prev.agents },
+        };
 
-        // Auto-start workflow if we receive workflow events
-        if (
-          !newState.isActive &&
-          (message.type === MessageBusType.WORKFLOW_PHASE ||
-            message.type === MessageBusType.WORKFLOW_LOG ||
-            message.type === MessageBusType.WORKFLOW_SPAWN_AGENT)
-        ) {
-          newState.isActive = true;
-          if (newState.phases.length === 0) {
-            newState.phases = [
-              { title: 'Initialization', agents: [], logs: [] },
-            ];
+        const createPhaseIfNeeded = (wid: string) => {
+          if (!s.workflows[wid]) return;
+          if (s.workflows[wid].phaseIds.length === 0) {
+            const phaseId = `phase_${Math.random()}`;
+            s.phases[phaseId] = {
+              id: phaseId,
+              title: 'Initialization',
+              logs: [],
+              agentIds: [],
+            };
+            s.workflows[wid] = { ...s.workflows[wid], phaseIds: [phaseId] };
           }
-        }
-
-        const currentPhaseIdx = Math.max(0, newState.phases.length - 1);
+        };
 
         switch (message.type) {
-          case MessageBusType.WORKFLOW_START:
-            // Reset state
-            newState.isActive = true;
-            newState.phases = [
-              { title: 'Initialization', agents: [], logs: [] },
-            ];
-            newState.agentCounter = 0;
-            break;
-
-          case MessageBusType.WORKFLOW_END:
-            // Mark any remaining running agents as errored (aborted)
-            newState.phases = newState.phases.map((phase) => ({
-              ...phase,
-              agents: phase.agents.map((agent) =>
-                agent.status === 'running'
-                  ? {
-                      ...agent,
-                      status: 'error',
-                      error: 'Workflow ended abruptly',
-                    }
-                  : agent,
-              ),
-            }));
-            break;
-
-          case MessageBusType.WORKFLOW_PHASE:
-            newState.phases = [
-              ...newState.phases,
-              { title: message.data.title, agents: [], logs: [] },
-            ];
-            break;
-
-          case MessageBusType.WORKFLOW_LOG:
-            if (newState.phases[currentPhaseIdx]) {
-              const phase = { ...newState.phases[currentPhaseIdx] };
-              phase.logs = [...phase.logs, message.data.message];
-              newState.phases[currentPhaseIdx] = phase;
+          case MessageBusType.WORKFLOW_START: {
+            if (!message.parentId) {
+              // This is a root workflow. Reset the entire state.
+              s.isActive = true;
+              s.rootWorkflowId = message.workflowId;
+              s.workflows = {};
+              s.phases = {};
+              s.agents = {};
+              s.agentCounter = 0;
+            }
+            s.workflows[message.workflowId] = {
+              id: message.workflowId,
+              phaseIds: [],
+              status: 'running',
+            };
+            if (message.parentId && s.agents[message.parentId]) {
+              s.agents[message.parentId] = {
+                ...s.agents[message.parentId],
+                childWorkflowId: message.workflowId,
+              };
             }
             break;
+          }
+
+          case MessageBusType.WORKFLOW_END: {
+            if (s.workflows[message.workflowId]) {
+              s.workflows[message.workflowId] = {
+                ...s.workflows[message.workflowId],
+                status: 'completed',
+              };
+
+              // Mark any running agents in this workflow as errored
+              const phaseIds = s.workflows[message.workflowId].phaseIds;
+              for (const pid of phaseIds) {
+                const phase = s.phases[pid];
+                if (phase) {
+                  for (const aid of phase.agentIds) {
+                    if (s.agents[aid]?.status === 'running') {
+                      s.agents[aid] = {
+                        ...s.agents[aid],
+                        status: 'error',
+                        error: 'Workflow ended abruptly',
+                      };
+                    }
+                  }
+                }
+              }
+            }
+            break;
+          }
+
+          case MessageBusType.WORKFLOW_PHASE: {
+            if (message.workflowId && s.workflows[message.workflowId]) {
+              const phaseId = `phase_${Math.random()}`;
+              s.phases[phaseId] = {
+                id: phaseId,
+                title: message.data.title,
+                logs: [],
+                agentIds: [],
+              };
+              s.workflows[message.workflowId] = {
+                ...s.workflows[message.workflowId],
+                phaseIds: [
+                  ...s.workflows[message.workflowId].phaseIds,
+                  phaseId,
+                ],
+              };
+            }
+            break;
+          }
+
+          case MessageBusType.WORKFLOW_LOG: {
+            if (message.workflowId && s.workflows[message.workflowId]) {
+              createPhaseIfNeeded(message.workflowId);
+              const pIds = s.workflows[message.workflowId].phaseIds;
+              const lastPhaseId = pIds[pIds.length - 1];
+              if (lastPhaseId) {
+                s.phases[lastPhaseId] = {
+                  ...s.phases[lastPhaseId],
+                  logs: [...s.phases[lastPhaseId].logs, message.data.message],
+                };
+              }
+            }
+            break;
+          }
 
           case MessageBusType.WORKFLOW_SPAWN_AGENT: {
-            newState.agentCounter += 1;
-            if (newState.phases[currentPhaseIdx]) {
-              const phase = { ...newState.phases[currentPhaseIdx] };
-              phase.agents = [
-                ...phase.agents,
-                {
-                  id: newState.agentCounter,
+            if (message.workflowId && s.workflows[message.workflowId]) {
+              createPhaseIfNeeded(message.workflowId);
+              const pIds = s.workflows[message.workflowId].phaseIds;
+              const lastPhaseId = pIds[pIds.length - 1];
+
+              if (lastPhaseId && message.data.agentId) {
+                s.agentCounter += 1;
+                const aid = message.data.agentId;
+                s.agents[aid] = {
+                  id: aid,
+                  displayId: s.agentCounter,
                   label: message.data.label ?? 'Subagent',
                   status: 'running',
-                },
-              ];
-              newState.phases[currentPhaseIdx] = phase;
+                };
+                s.phases[lastPhaseId] = {
+                  ...s.phases[lastPhaseId],
+                  agentIds: [...s.phases[lastPhaseId].agentIds, aid],
+                };
+              }
             }
             break;
           }
 
           case MessageBusType.WORKFLOW_AGENT_END: {
-            if (newState.phases[currentPhaseIdx]) {
-              const phase = { ...newState.phases[currentPhaseIdx] };
-              // Find the last running agent that matches this label (or just the last running agent if no label)
-              // This is a naive heuristic because events don't have correlation IDs yet, but good enough for UI
-              const agentIdx = [...phase.agents]
-                .reverse()
-                .findIndex(
-                  (a) =>
-                    a.status === 'running' &&
-                    (message.data.label
-                      ? a.label === message.data.label
-                      : true),
-                );
-
-              if (agentIdx !== -1) {
-                const actualIdx = phase.agents.length - 1 - agentIdx;
-                phase.agents[actualIdx] = {
-                  ...phase.agents[actualIdx],
-                  status:
-                    message.data.status === 'completed' ? 'completed' : 'error',
-                  error: message.data.error,
-                };
-                newState.phases[currentPhaseIdx] = phase;
-              }
+            if (message.data.agentId && s.agents[message.data.agentId]) {
+              s.agents[message.data.agentId] = {
+                ...s.agents[message.data.agentId],
+                status:
+                  message.data.status === 'completed' ? 'completed' : 'error',
+                error: message.data.error,
+              };
             }
             break;
           }
           default:
             break;
         }
-        return newState;
+        return s;
       });
     };
 

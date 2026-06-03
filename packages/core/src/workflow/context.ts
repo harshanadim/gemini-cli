@@ -23,6 +23,8 @@ export class GeminiWorkflowContext {
 
   constructor(
     private readonly hostContext: AgentLoopContext,
+    readonly workflowId: string,
+    readonly parentId?: string,
     private readonly abortSignal?: AbortSignal,
     _maxConcurrency = 5, // Deprecated, unused but kept for backwards compatibility in tests if any
   ) {
@@ -47,11 +49,16 @@ export class GeminiWorkflowContext {
       prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt;
     const finalLabel = opts?.label ?? defaultLabel;
 
+    // The subagent name is also its ID for the UI
+    const agentId = `workflow_subagent_${randomUUID().substring(0, 8)}`;
+
     return this.manager.runAgentTask(async () => {
       // 1. Notify UI that an agent is starting
       this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_SPAWN_AGENT, {
         type: MessageBusType.WORKFLOW_SPAWN_AGENT,
-        data: { label: finalLabel, status: 'running' },
+        workflowId: this.workflowId,
+        parentId: this.parentId,
+        data: { agentId, label: finalLabel, status: 'running' },
       });
 
       try {
@@ -65,7 +72,7 @@ export class GeminiWorkflowContext {
 
         const agentDef: LocalAgentDefinition<z.ZodTypeAny> = {
           ...baseDef,
-          name: `workflow_subagent_${randomUUID().substring(0, 8)}`,
+          name: agentId,
           displayName: finalLabel,
           outputConfig: opts?.schema
             ? {
@@ -106,7 +113,10 @@ export class GeminiWorkflowContext {
 
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
           type: MessageBusType.WORKFLOW_AGENT_END,
+          workflowId: this.workflowId,
+          parentId: this.parentId,
           data: {
+            agentId,
             label: finalLabel,
             status: 'completed',
             result: finalResult,
@@ -117,7 +127,14 @@ export class GeminiWorkflowContext {
       } catch (error) {
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
           type: MessageBusType.WORKFLOW_AGENT_END,
-          data: { label: finalLabel, status: 'error', error: String(error) },
+          workflowId: this.workflowId,
+          parentId: this.parentId,
+          data: {
+            agentId,
+            label: finalLabel,
+            status: 'error',
+            error: String(error),
+          },
         });
         throw error;
       }
@@ -157,6 +174,8 @@ export class GeminiWorkflowContext {
   phase(title: string): void {
     this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_PHASE, {
       type: MessageBusType.WORKFLOW_PHASE,
+      workflowId: this.workflowId,
+      parentId: this.parentId,
       data: { title },
     });
   }
@@ -167,6 +186,8 @@ export class GeminiWorkflowContext {
   log(message: string): void {
     this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_LOG, {
       type: MessageBusType.WORKFLOW_LOG,
+      workflowId: this.workflowId,
+      parentId: this.parentId,
       data: { message },
     });
   }

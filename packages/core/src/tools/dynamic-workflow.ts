@@ -17,6 +17,7 @@ import { GeminiWorkflowContext } from '../workflow/context.js';
 import { WorkflowSandbox } from '../workflow/sandbox.js';
 import { DYNAMIC_WORKFLOW_TOOL_NAME } from './tool-names.js';
 
+import { randomUUID } from 'node:crypto';
 import { MessageBusType, type Message } from '../confirmation-bus/types.js';
 
 export class DynamicWorkflowTool extends BaseDeclarativeTool<
@@ -88,9 +89,14 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
     const abortHandler = () => controller.abort();
     _options.abortSignal.addEventListener('abort', abortHandler);
 
+    const workflowId = `workflow_${randomUUID().substring(0, 8)}`;
+    const parentId = this.messageBus.subagentName;
+
     const cancelRequestHandler = (message: Message) => {
       if (message.type === MessageBusType.WORKFLOW_CANCEL_REQUEST) {
-        controller.abort();
+        if (!message.workflowId || message.workflowId === workflowId) {
+          controller.abort();
+        }
       }
     };
     this.messageBus.subscribe(
@@ -100,12 +106,16 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
 
     const workflowContext = new GeminiWorkflowContext(
       this.context,
+      workflowId,
+      parentId,
       controller.signal,
     );
     const globals = workflowContext.getGlobals();
 
     this.messageBus.emit(MessageBusType.WORKFLOW_START, {
       type: MessageBusType.WORKFLOW_START,
+      workflowId,
+      parentId,
     });
 
     try {
@@ -132,6 +142,8 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
     } finally {
       this.messageBus.emit(MessageBusType.WORKFLOW_END, {
         type: MessageBusType.WORKFLOW_END,
+        workflowId,
+        parentId,
       });
       _options.abortSignal.removeEventListener('abort', abortHandler);
       this.messageBus.unsubscribe(
