@@ -136,3 +136,6 @@ export const COMPLETE_TASK_DISPLAY_NAME = 'Complete Task';
 // -- MCP Resources --
 export const READ_MCP_RESOURCE_TOOL_NAME = 'read_mcp_resource';
 export const LIST_MCP_RESOURCES_TOOL_NAME = 'list_mcp_resources';
+
+// -- dynamic workflow --
+export const DYNAMIC_WORKFLOW_TOOL_NAME = 'run_dynamic_workflow';

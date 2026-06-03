@@ -99,6 +99,7 @@ export {
   TOPIC_PARAM_TITLE,
   TOPIC_PARAM_SUMMARY,
   TOPIC_PARAM_STRATEGIC_INTENT,
+  DYNAMIC_WORKFLOW_TOOL_NAME,
 } from './base-declarations.js';
 
 // Re-export sets for compatibility

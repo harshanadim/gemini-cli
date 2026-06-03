@@ -238,7 +238,7 @@ export interface WorkflowSpawnAgentMessage {
 
 export interface WorkflowAgentEndMessage {
   type: MessageBusType.WORKFLOW_AGENT_END;
-  data: { label?: string; status: string; result?: any; error?: string };
+  data: { label?: string; status: string; result?: unknown; error?: string };
 }
 
 export type Message =

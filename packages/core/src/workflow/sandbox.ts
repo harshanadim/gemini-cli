@@ -13,7 +13,7 @@ export interface WorkflowSandboxOptions {
 export class WorkflowSandbox {
   /**
    * Executes the given script in a strictly isolated environment.
-   * 
+   *
    * @param script The JavaScript code to execute.
    * @param injectedGlobals An object whose properties will be available as globals in the script.
    * @param options Execution options (e.g., timeout).
@@ -21,16 +21,16 @@ export class WorkflowSandbox {
    */
   static async execute(
     script: string,
-    injectedGlobals: Record<string, any>,
-    options: WorkflowSandboxOptions = {}
-  ): Promise<any> {
+    injectedGlobals: Record<string, unknown>,
+    options: WorkflowSandboxOptions = {},
+  ): Promise<unknown> {
     const timeout = options.timeoutMs ?? 10 * 60 * 1000; // Default 10 minutes
 
     // Create a deeply restricted context object
     const sandboxContext = {
       // Inject the provided SDK globals
       ...injectedGlobals,
-      
+
       // Provide basic JS primitives that are safe
       Promise,
       Array,
@@ -42,28 +42,38 @@ export class WorkflowSandbox {
       Set,
       JSON,
       Error,
-      
+
       // Override non-deterministic or potentially unsafe globals
       Date: {
-        now: () => { throw new Error("Date.now() is disabled in dynamic workflows for determinism."); }
+        now: () => {
+          throw new Error(
+            'Date.now() is disabled in dynamic workflows for determinism.',
+          );
+        },
       },
       Math: {
         ...Math,
-        random: () => { throw new Error("Math.random() is disabled in dynamic workflows for determinism."); }
+        random: () => {
+          throw new Error(
+            'Math.random() is disabled in dynamic workflows for determinism.',
+          );
+        },
       },
       console: {
-        log: (...args: any[]) => {
+        log: (...args: unknown[]) => {
           // If a log function was injected via SDK, use it, otherwise ignore
-          if (typeof injectedGlobals['log'] === 'function') {
-            injectedGlobals['log'](args.join(' '));
+          const logFn = injectedGlobals['log'];
+          if (logFn instanceof Function) {
+            logFn(args.join(' '));
           }
         },
-        error: (...args: any[]) => {
-           if (typeof injectedGlobals['log'] === 'function') {
-            injectedGlobals['log']('[ERROR] ' + args.join(' '));
+        error: (...args: unknown[]) => {
+          const logFn = injectedGlobals['log'];
+          if (logFn instanceof Function) {
+            logFn('[ERROR] ' + args.join(' '));
           }
-        }
-      }
+        },
+      },
     };
 
     const context = vm.createContext(sandboxContext);
@@ -76,7 +86,7 @@ export class WorkflowSandbox {
     `;
 
     try {
-      const result = await vm.runInContext(wrappedScript, context, {
+      const result: unknown = await vm.runInContext(wrappedScript, context, {
         timeout,
         displayErrors: true,
       });

@@ -15,7 +15,7 @@ import { MessageBusType } from '../confirmation-bus/types.js';
 
 export interface WorkflowAgentOptions {
   label?: string;
-  schema?: any; // A generic JSON schema object
+  schema?: Record<string, unknown>; // A generic JSON schema object
 }
 
 export class GeminiWorkflowContext {
@@ -23,7 +23,7 @@ export class GeminiWorkflowContext {
 
   constructor(
     private readonly hostContext: AgentLoopContext,
-    maxConcurrency = 5
+    maxConcurrency = 5,
   ) {
     this.pool = new WorkflowTaskPool(maxConcurrency);
   }
@@ -31,63 +31,77 @@ export class GeminiWorkflowContext {
   /**
    * Spawns a subagent to execute a prompt, managed by the task pool.
    */
-  async agent(prompt: string, opts?: WorkflowAgentOptions): Promise<any> {
+  async agent(prompt: string, opts?: WorkflowAgentOptions): Promise<unknown> {
     return this.pool.run(async () => {
       // 1. Notify UI that an agent is starting
       this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_SPAWN_AGENT, {
         type: MessageBusType.WORKFLOW_SPAWN_AGENT,
-        data: { label: opts?.label, status: 'running' }
+        data: { label: opts?.label, status: 'running' },
       });
 
       try {
         // 2. Build a LocalAgentDefinition based on Generalist
         const baseDef = GeneralistAgent(this.hostContext);
-        
-        let outputSchema: z.ZodTypeAny = z.string();
+
+        let query = prompt;
         if (opts?.schema) {
-            outputSchema = z.any(); // In a real implementation we would convert the JSON schema to Zod.
+          query += `\n\nYour final output MUST exactly match this JSON schema: ${JSON.stringify(opts.schema, null, 2)}`;
         }
 
-        const agentDef: LocalAgentDefinition<any> = {
+        const agentDef: LocalAgentDefinition<z.ZodTypeAny> = {
           ...baseDef,
-          name: `workflow_subagent_${randomUUID().substring(0,8)}`,
+          name: `workflow_subagent_${randomUUID().substring(0, 8)}`,
           displayName: opts?.label ?? 'Workflow Subagent',
           promptConfig: {
             ...baseDef.promptConfig,
-            query: prompt,
+            query,
           },
-          outputConfig: opts?.schema ? {
-              outputName: 'result',
-              description: 'The final structured result.',
-              schema: outputSchema 
-          } : baseDef.outputConfig,
+          outputConfig: opts?.schema
+            ? {
+                outputName: 'result',
+                description: 'The final structured result.',
+                schema: z.unknown(),
+              }
+            : baseDef.outputConfig,
         };
 
         // 3. Create and run the executor
-        const executor = await LocalAgentExecutor.create(agentDef, this.hostContext);
-        
+        const executor = await LocalAgentExecutor.create(
+          agentDef,
+          this.hostContext,
+        );
+
         // Pass a new abort signal
         const controller = new AbortController();
-        const output = await executor.run({ request: prompt }, controller.signal);
+        const output = await executor.run(
+          { request: query },
+          controller.signal,
+        );
+
+        let finalResult: unknown = output.result;
+
+        if (opts?.schema && typeof finalResult === 'string') {
+          try {
+            finalResult = JSON.parse(finalResult);
+          } catch {
+            // Return original string if not valid JSON
+          }
+        }
 
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
-            type: MessageBusType.WORKFLOW_AGENT_END,
-            data: { label: opts?.label, status: 'completed', result: output.result }
+          type: MessageBusType.WORKFLOW_AGENT_END,
+          data: {
+            label: opts?.label,
+            status: 'completed',
+            result: finalResult,
+          },
         });
-        
-        if (opts?.schema) {
-            try {
-               return typeof output.result === 'string' ? JSON.parse(output.result) : output.result;
-            } catch {
-                return output.result;
-            }
-        }
-        
-        return output.result;
+
+        return finalResult;
       } catch (error) {
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
-            type: MessageBusType.WORKFLOW_AGENT_END,
-            data: { label: opts?.label, status: 'error', error: String(error) }
+          type: MessageBusType.WORKFLOW_AGENT_END,
+          data: { label: opts?.label, status: 'error', error: String(error) },
         });
         throw error;
       }
@@ -97,23 +111,28 @@ export class GeminiWorkflowContext {
   /**
    * Helper to run multiple agent thunks concurrently (up to pool limit).
    */
-  async parallel(thunks: Array<() => Promise<any>>): Promise<any[]> {
-    return Promise.all(thunks.map(t => t()));
+  async parallel(thunks: Array<() => Promise<unknown>>): Promise<unknown[]> {
+    return Promise.all(thunks.map((t) => t()));
   }
 
   /**
    * Helper to pipe items through sequential processing stages.
    */
-  async pipeline(items: any[], ...stages: Function[]): Promise<any[]> {
-      const results = [];
-      for (let i = 0; i < items.length; i++) {
-          let current = items[i];
-          for (const stage of stages) {
-              current = await stage(current, items[i], i);
-          }
-          results.push(current);
+  async pipeline(
+    items: unknown[],
+    ...stages: Array<
+      (current: unknown, original: unknown, index: number) => Promise<unknown>
+    >
+  ): Promise<unknown[]> {
+    const results: unknown[] = [];
+    for (let i = 0; i < items.length; i++) {
+      let current = items[i];
+      for (const stage of stages) {
+        current = await stage(current, items[i], i);
       }
-      return results;
+      results.push(current);
+    }
+    return results;
   }
 
   /**
@@ -121,8 +140,8 @@ export class GeminiWorkflowContext {
    */
   phase(title: string): void {
     this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_PHASE, {
-        type: MessageBusType.WORKFLOW_PHASE,
-        data: { title }
+      type: MessageBusType.WORKFLOW_PHASE,
+      data: { title },
     });
   }
 
@@ -131,15 +150,15 @@ export class GeminiWorkflowContext {
    */
   log(message: string): void {
     this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_LOG, {
-        type: MessageBusType.WORKFLOW_LOG,
-        data: { message }
+      type: MessageBusType.WORKFLOW_LOG,
+      data: { message },
     });
   }
 
   /**
    * Returns an object containing the globals to inject into the sandbox.
    */
-  getGlobals(): Record<string, any> {
+  getGlobals(): Record<string, unknown> {
     return {
       agent: this.agent.bind(this),
       parallel: this.parallel.bind(this),

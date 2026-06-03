@@ -50,6 +50,7 @@ import { AskUserTool } from '../tools/ask-user.js';
 import { UpdateTopicTool } from '../tools/topicTool.js';
 import { TopicState } from './topicState.js';
 import { AgentTool } from '../agents/agent-tool.js';
+import { DynamicWorkflowTool } from '../tools/dynamic-workflow.js';
 import { ExitPlanModeTool } from '../tools/exit-plan-mode.js';
 import { EnterPlanModeTool } from '../tools/enter-plan-mode.js';
 import {
@@ -4046,6 +4047,11 @@ export class Config implements McpContext, AgentLoopContext {
     // Register Subagent Tool
     maybeRegister(AgentTool, () =>
       registry.registerTool(new AgentTool(this, this.messageBus)),
+    );
+
+    // Register Dynamic Workflow Tool
+    maybeRegister(DynamicWorkflowTool, () =>
+      registry.registerTool(new DynamicWorkflowTool(this, this.messageBus)),
     );
 
     await registry.discoverAllTools();
