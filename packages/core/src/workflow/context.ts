@@ -42,11 +42,15 @@ export class GeminiWorkflowContext {
     }
     this.agentInvocations++;
 
+    const defaultLabel =
+      prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt;
+    const finalLabel = opts?.label ?? defaultLabel;
+
     return this.pool.run(async () => {
       // 1. Notify UI that an agent is starting
       this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_SPAWN_AGENT, {
         type: MessageBusType.WORKFLOW_SPAWN_AGENT,
-        data: { label: opts?.label, status: 'running' },
+        data: { label: finalLabel, status: 'running' },
       });
 
       try {
@@ -61,7 +65,7 @@ export class GeminiWorkflowContext {
         const agentDef: LocalAgentDefinition<z.ZodTypeAny> = {
           ...baseDef,
           name: `workflow_subagent_${randomUUID().substring(0, 8)}`,
-          displayName: opts?.label ?? 'Workflow Subagent',
+          displayName: finalLabel,
           outputConfig: opts?.schema
             ? {
                 outputName: 'result',
@@ -97,7 +101,7 @@ export class GeminiWorkflowContext {
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
           type: MessageBusType.WORKFLOW_AGENT_END,
           data: {
-            label: opts?.label,
+            label: finalLabel,
             status: 'completed',
             result: finalResult,
           },
@@ -107,7 +111,7 @@ export class GeminiWorkflowContext {
       } catch (error) {
         this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_AGENT_END, {
           type: MessageBusType.WORKFLOW_AGENT_END,
-          data: { label: opts?.label, status: 'error', error: String(error) },
+          data: { label: finalLabel, status: 'error', error: String(error) },
         });
         throw error;
       }

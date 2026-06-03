@@ -303,10 +303,10 @@ For massive fan-out tasks or complex multi-step orchestration across dozens of f
 **Example Script:**
 \`\`\`javascript
 phase('Discovery');
-const files = await agent('List all ts files', { schema: { type: 'array', items: { type: 'string' } } });
+const files = await agent('List all ts files', { label: 'List Files', schema: { type: 'array', items: { type: 'string' } } });
 
 phase('Processing');
-const results = await parallel(files.map(f => () => agent('Audit ' + f + ' for security issues.')));
+const results = await parallel(files.map(f => () => agent('Audit ' + f + ' for security issues.', { label: 'Audit ' + f })));
 return results;
 \`\`\`
 
