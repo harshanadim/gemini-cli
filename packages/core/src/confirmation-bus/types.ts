@@ -26,6 +26,10 @@ export enum MessageBusType {
   ASK_USER_REQUEST = 'ask-user-request',
   ASK_USER_RESPONSE = 'ask-user-response',
   SUBAGENT_ACTIVITY = 'subagent-activity',
+  WORKFLOW_PHASE = 'workflow-phase',
+  WORKFLOW_LOG = 'workflow-log',
+  WORKFLOW_SPAWN_AGENT = 'workflow-spawn-agent',
+  WORKFLOW_AGENT_END = 'workflow-agent-end',
 }
 
 export interface ToolCallsUpdateMessage {
@@ -217,6 +221,26 @@ export interface SubagentActivityMessage {
   activity: SubagentActivityItem;
 }
 
+export interface WorkflowPhaseMessage {
+  type: MessageBusType.WORKFLOW_PHASE;
+  data: { title: string };
+}
+
+export interface WorkflowLogMessage {
+  type: MessageBusType.WORKFLOW_LOG;
+  data: { message: string };
+}
+
+export interface WorkflowSpawnAgentMessage {
+  type: MessageBusType.WORKFLOW_SPAWN_AGENT;
+  data: { label?: string; status: string };
+}
+
+export interface WorkflowAgentEndMessage {
+  type: MessageBusType.WORKFLOW_AGENT_END;
+  data: { label?: string; status: string; result?: any; error?: string };
+}
+
 export type Message =
   | ToolConfirmationRequest
   | ToolConfirmationResponse
@@ -227,4 +251,8 @@ export type Message =
   | AskUserRequest
   | AskUserResponse
   | ToolCallsUpdateMessage
-  | SubagentActivityMessage;
+  | SubagentActivityMessage
+  | WorkflowPhaseMessage
+  | WorkflowLogMessage
+  | WorkflowSpawnAgentMessage
+  | WorkflowAgentEndMessage;
