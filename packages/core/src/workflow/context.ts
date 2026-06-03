@@ -25,6 +25,7 @@ export class GeminiWorkflowContext {
 
   constructor(
     private readonly hostContext: AgentLoopContext,
+    private readonly abortSignal?: AbortSignal,
     maxConcurrency = 5,
   ) {
     this.pool = new WorkflowTaskPool(maxConcurrency);
@@ -35,6 +36,9 @@ export class GeminiWorkflowContext {
    * Spawns a subagent to execute a prompt, managed by the task pool.
    */
   async agent(prompt: string, opts?: WorkflowAgentOptions): Promise<unknown> {
+    if (this.abortSignal?.aborted) {
+      throw new Error('Workflow aborted');
+    }
     if (this.agentInvocations >= this.maxAgents) {
       throw new Error(
         `Maximum workflow subagents limit (${this.maxAgents}) exceeded. Configure general.maxWorkflowSubagents to increase this limit.`,
@@ -83,10 +87,15 @@ export class GeminiWorkflowContext {
 
         // Pass a new abort signal
         const controller = new AbortController();
-        const output = await executor.run(
-          { request: query },
-          controller.signal,
-        );
+        const abortHandler = () => controller.abort();
+        this.abortSignal?.addEventListener('abort', abortHandler);
+
+        let output;
+        try {
+          output = await executor.run({ request: query }, controller.signal);
+        } finally {
+          this.abortSignal?.removeEventListener('abort', abortHandler);
+        }
 
         let finalResult: unknown = output.result;
 

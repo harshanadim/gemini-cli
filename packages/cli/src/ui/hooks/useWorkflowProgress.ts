@@ -25,6 +25,7 @@ export interface WorkflowPhase {
 export interface WorkflowState {
   isActive: boolean;
   phases: WorkflowPhase[];
+  agentCounter: number;
 }
 
 export function useWorkflowProgress() {
@@ -34,14 +35,11 @@ export function useWorkflowProgress() {
   const [state, setState] = useState<WorkflowState>({
     isActive: false,
     phases: [],
+    agentCounter: 0,
   });
 
-  // Unique counter for agents to display #1, #2, etc.
-  const [, setAgentCounter] = useState(0);
-
   const reset = useCallback(() => {
-    setState({ isActive: false, phases: [] });
-    setAgentCounter(0);
+    setState({ isActive: false, phases: [], agentCounter: 0 });
   }, []);
 
   useEffect(() => {
@@ -73,7 +71,7 @@ export function useWorkflowProgress() {
             newState.phases = [
               { title: 'Initialization', agents: [], logs: [] },
             ];
-            setAgentCounter(0);
+            newState.agentCounter = 0;
             break;
 
           case MessageBusType.WORKFLOW_END:
@@ -108,22 +106,19 @@ export function useWorkflowProgress() {
             break;
 
           case MessageBusType.WORKFLOW_SPAWN_AGENT: {
-            setAgentCounter((c) => {
-              const newCount = c + 1;
-              if (newState.phases[currentPhaseIdx]) {
-                const phase = { ...newState.phases[currentPhaseIdx] };
-                phase.agents = [
-                  ...phase.agents,
-                  {
-                    id: newCount,
-                    label: message.data.label ?? 'Subagent',
-                    status: 'running',
-                  },
-                ];
-                newState.phases[currentPhaseIdx] = phase;
-              }
-              return newCount;
-            });
+            newState.agentCounter += 1;
+            if (newState.phases[currentPhaseIdx]) {
+              const phase = { ...newState.phases[currentPhaseIdx] };
+              phase.agents = [
+                ...phase.agents,
+                {
+                  id: newState.agentCounter,
+                  label: message.data.label ?? 'Subagent',
+                  status: 'running',
+                },
+              ];
+              newState.phases[currentPhaseIdx] = phase;
+            }
             break;
           }
 
