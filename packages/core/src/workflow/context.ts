@@ -20,18 +20,28 @@ export interface WorkflowAgentOptions {
 
 export class GeminiWorkflowContext {
   private readonly pool: WorkflowTaskPool;
+  private agentInvocations = 0;
+  private readonly maxAgents: number;
 
   constructor(
     private readonly hostContext: AgentLoopContext,
     maxConcurrency = 5,
   ) {
     this.pool = new WorkflowTaskPool(maxConcurrency);
+    this.maxAgents = hostContext.config?.getMaxWorkflowSubagents() ?? 20;
   }
 
   /**
    * Spawns a subagent to execute a prompt, managed by the task pool.
    */
   async agent(prompt: string, opts?: WorkflowAgentOptions): Promise<unknown> {
+    if (this.agentInvocations >= this.maxAgents) {
+      throw new Error(
+        `Maximum workflow subagents limit (${this.maxAgents}) exceeded. Configure general.maxWorkflowSubagents to increase this limit.`,
+      );
+    }
+    this.agentInvocations++;
+
     return this.pool.run(async () => {
       // 1. Notify UI that an agent is starting
       this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_SPAWN_AGENT, {

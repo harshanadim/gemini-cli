@@ -192,6 +192,16 @@ const SETTINGS_SCHEMA = {
     description: 'General application settings.',
     showInDialog: false,
     properties: {
+      maxWorkflowSubagents: {
+        type: 'number',
+        label: 'Max Workflow Subagents',
+        category: 'General',
+        requiresRestart: false,
+        default: 20,
+        description:
+          'The maximum number of parallel subagents a dynamic workflow can spawn.',
+        showInDialog: true,
+      },
       preferredEditor: {
         type: 'enum',
         label: 'Preferred Editor',

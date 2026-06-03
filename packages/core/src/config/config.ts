@@ -746,6 +746,7 @@ export interface ConfigParameters {
   };
   vertexAiRouting?: VertexAiRoutingConfig;
   logRagSnippets?: boolean;
+  maxWorkflowSubagents?: number;
 }
 
 export class Config implements McpContext, AgentLoopContext {
@@ -796,6 +797,7 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly extensionsEnabled: boolean;
   private mcpServers: Record<string, MCPServerConfig> | undefined;
   private readonly mcpEnablementCallbacks?: McpEnablementCallbacks;
+  private readonly maxWorkflowSubagents: number;
   private userMemory: string | HierarchicalMemory;
   private geminiMdFileCount: number;
   private geminiMdFilePaths: string[];
@@ -990,6 +992,7 @@ export class Config implements McpContext, AgentLoopContext {
     this.clientName = params.clientName;
     this._clientVersion = params.clientVersion ?? 'unknown';
     this.approvedPlanPath = undefined;
+    this.maxWorkflowSubagents = params.maxWorkflowSubagents ?? 20;
 
     this.embeddingModel =
       params.embeddingModel ?? DEFAULT_GEMINI_EMBEDDING_MODEL;
@@ -2254,6 +2257,10 @@ export class Config implements McpContext, AgentLoopContext {
 
   getPromptRegistry(): PromptRegistry {
     return this._promptRegistry;
+  }
+
+  getMaxWorkflowSubagents(): number {
+    return this.maxWorkflowSubagents;
   }
 
   getSkillManager(): SkillManager {

@@ -966,6 +966,7 @@ export async function loadCliConfig(
     targetDir: cwd,
     includeDirectoryTree,
     includeDirectories,
+    maxWorkflowSubagents: settings.general?.maxWorkflowSubagents,
     loadMemoryFromIncludeDirectories:
       settings.context?.loadMemoryFromIncludeDirectories || false,
     discoveryMaxDirs: settings.context?.discoveryMaxDirs,
