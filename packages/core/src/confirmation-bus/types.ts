@@ -32,6 +32,7 @@ export enum MessageBusType {
   WORKFLOW_AGENT_END = 'workflow-agent-end',
   WORKFLOW_START = 'workflow-start',
   WORKFLOW_END = 'workflow-end',
+  WORKFLOW_CANCEL_REQUEST = 'workflow-cancel-request',
 }
 
 export interface ToolCallsUpdateMessage {
@@ -251,6 +252,10 @@ export interface WorkflowEndMessage {
   type: MessageBusType.WORKFLOW_END;
 }
 
+export interface WorkflowCancelRequestMessage {
+  type: MessageBusType.WORKFLOW_CANCEL_REQUEST;
+}
+
 export type Message =
   | ToolConfirmationRequest
   | ToolConfirmationResponse
@@ -267,4 +272,5 @@ export type Message =
   | WorkflowSpawnAgentMessage
   | WorkflowAgentEndMessage
   | WorkflowStartMessage
-  | WorkflowEndMessage;
+  | WorkflowEndMessage
+  | WorkflowCancelRequestMessage;

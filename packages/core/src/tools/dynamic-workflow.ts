@@ -17,7 +17,7 @@ import { GeminiWorkflowContext } from '../workflow/context.js';
 import { WorkflowSandbox } from '../workflow/sandbox.js';
 import { DYNAMIC_WORKFLOW_TOOL_NAME } from './tool-names.js';
 
-import { MessageBusType } from '../confirmation-bus/types.js';
+import { MessageBusType, type Message } from '../confirmation-bus/types.js';
 
 export class DynamicWorkflowTool extends BaseDeclarativeTool<
   { script: string },
@@ -84,7 +84,24 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
   }
 
   async execute(_options: ExecuteOptions): Promise<ToolResult> {
-    const workflowContext = new GeminiWorkflowContext(this.context);
+    const controller = new AbortController();
+    const abortHandler = () => controller.abort();
+    _options.abortSignal.addEventListener('abort', abortHandler);
+
+    const cancelRequestHandler = (message: Message) => {
+      if (message.type === MessageBusType.WORKFLOW_CANCEL_REQUEST) {
+        controller.abort();
+      }
+    };
+    this.messageBus.subscribe(
+      MessageBusType.WORKFLOW_CANCEL_REQUEST,
+      cancelRequestHandler,
+    );
+
+    const workflowContext = new GeminiWorkflowContext(
+      this.context,
+      controller.signal,
+    );
     const globals = workflowContext.getGlobals();
 
     this.messageBus.emit(MessageBusType.WORKFLOW_START, {
@@ -116,6 +133,11 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
       this.messageBus.emit(MessageBusType.WORKFLOW_END, {
         type: MessageBusType.WORKFLOW_END,
       });
+      _options.abortSignal.removeEventListener('abort', abortHandler);
+      this.messageBus.unsubscribe(
+        MessageBusType.WORKFLOW_CANCEL_REQUEST,
+        cancelRequestHandler,
+      );
     }
   }
 }
