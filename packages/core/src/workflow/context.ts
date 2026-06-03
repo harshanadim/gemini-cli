@@ -5,7 +5,7 @@
  */
 
 import { type AgentLoopContext } from '../config/agent-loop-context.js';
-import { WorkflowTaskPool } from './pool.js';
+import { GlobalWorkflowManager } from './manager.js';
 import { LocalAgentExecutor } from '../agents/local-executor.js';
 import { GeneralistAgent } from '../agents/generalist-agent.js';
 import { z } from 'zod';
@@ -19,38 +19,35 @@ export interface WorkflowAgentOptions {
 }
 
 export class GeminiWorkflowContext {
-  private readonly pool: WorkflowTaskPool;
-  private agentInvocations = 0;
-  private readonly maxAgents: number;
+  private readonly manager: GlobalWorkflowManager;
 
   constructor(
     private readonly hostContext: AgentLoopContext,
     private readonly abortSignal?: AbortSignal,
-    maxConcurrency = 5,
+    _maxConcurrency = 5, // Deprecated, unused but kept for backwards compatibility in tests if any
   ) {
-    this.pool = new WorkflowTaskPool(maxConcurrency);
-    this.maxAgents = hostContext.config?.getMaxWorkflowSubagents() ?? 20;
+    // In our tests, `config` might be a stub that doesn't have getGlobalWorkflowManager.
+    // We fall back to a local instance if not provided, though in production it should always exist.
+    this.manager =
+      hostContext.config?.getGlobalWorkflowManager?.() ??
+      new GlobalWorkflowManager(
+        hostContext.config?.getMaxWorkflowSubagents?.() ?? 20,
+      );
   }
 
   /**
-   * Spawns a subagent to execute a prompt, managed by the task pool.
+   * Spawns a subagent to execute a prompt, managed by the global manager.
    */
   async agent(prompt: string, opts?: WorkflowAgentOptions): Promise<unknown> {
     if (this.abortSignal?.aborted) {
       throw new Error('Workflow aborted');
     }
-    if (this.agentInvocations >= this.maxAgents) {
-      throw new Error(
-        `Maximum workflow subagents limit (${this.maxAgents}) exceeded. Configure general.maxWorkflowSubagents to increase this limit.`,
-      );
-    }
-    this.agentInvocations++;
 
     const defaultLabel =
       prompt.length > 40 ? prompt.substring(0, 37) + '...' : prompt;
     const finalLabel = opts?.label ?? defaultLabel;
 
-    return this.pool.run(async () => {
+    return this.manager.runAgentTask(async () => {
       // 1. Notify UI that an agent is starting
       this.hostContext.messageBus?.emit(MessageBusType.WORKFLOW_SPAWN_AGENT, {
         type: MessageBusType.WORKFLOW_SPAWN_AGENT,

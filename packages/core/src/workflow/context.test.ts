@@ -11,21 +11,21 @@ import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import type { Config } from '../config/config.js';
 
 vi.mock('../agents/local-executor.js', () => ({
-    LocalAgentExecutor: {
-      create: vi.fn().mockResolvedValue({
-        run: vi.fn().mockResolvedValue({ result: 'mocked result' }),
-      }),
-    },
-  }));
+  LocalAgentExecutor: {
+    create: vi.fn().mockResolvedValue({
+      run: vi.fn().mockResolvedValue({ result: 'mocked result' }),
+    }),
+  },
+}));
 
 vi.mock('../agents/generalist-agent.js', () => ({
-    GeneralistAgent: vi.fn().mockReturnValue({
-      name: 'test_agent',
-      displayName: 'Test Agent',
-      promptConfig: { query: 'test' },
-      outputConfig: { outputName: 'result' },
-    }),
-  }));
+  GeneralistAgent: vi.fn().mockReturnValue({
+    name: 'test_agent',
+    displayName: 'Test Agent',
+    promptConfig: { query: 'test' },
+    outputConfig: { outputName: 'result' },
+  }),
+}));
 
 describe('GeminiWorkflowContext', () => {
   let mockContext: AgentLoopContext;

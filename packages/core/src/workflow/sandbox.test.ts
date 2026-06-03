@@ -18,25 +18,33 @@ describe('WorkflowSandbox', () => {
     const script = `return agent('test');`;
     const mockAgent = vi.fn().mockResolvedValue('success');
     const result = await WorkflowSandbox.execute(script, { agent: mockAgent });
-    
+
     expect(result).toBe('success');
     expect(mockAgent).toHaveBeenCalledWith('test');
   });
 
   it('should throw when accessing disabled non-deterministic functions', async () => {
     const scriptDate = `return Date.now();`;
-    await expect(WorkflowSandbox.execute(scriptDate, {})).rejects.toThrow('Date.now() is disabled');
+    await expect(WorkflowSandbox.execute(scriptDate, {})).rejects.toThrow(
+      'Date.now() is disabled',
+    );
 
     const scriptMath = `return Math.random();`;
-    await expect(WorkflowSandbox.execute(scriptMath, {})).rejects.toThrow('Math.random() is disabled');
+    await expect(WorkflowSandbox.execute(scriptMath, {})).rejects.toThrow(
+      'Math.random() is disabled',
+    );
   });
 
   it('should block access to require and process', async () => {
     const scriptRequire = `return require('fs');`;
-    await expect(WorkflowSandbox.execute(scriptRequire, {})).rejects.toThrow('require is not defined');
+    await expect(WorkflowSandbox.execute(scriptRequire, {})).rejects.toThrow(
+      'require is not defined',
+    );
 
     const scriptProcess = `return process.cwd();`;
-    await expect(WorkflowSandbox.execute(scriptProcess, {})).rejects.toThrow('process is not defined');
+    await expect(WorkflowSandbox.execute(scriptProcess, {})).rejects.toThrow(
+      'process is not defined',
+    );
   });
 
   it('should proxy console.log to injected log function', async () => {

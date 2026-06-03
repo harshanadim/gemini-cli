@@ -300,6 +300,7 @@ When you delegate, the sub-agent's entire execution is consolidated into a singl
 
 ### Dynamic Workflows
 For massive fan-out tasks or complex multi-step orchestration across dozens of files, use the ${formatToolName(DYNAMIC_WORKFLOW_TOOL_NAME)} tool. You can write a JavaScript script using the injected SDK (\`agent(prompt, opts)\`, \`parallel(thunks)\`, \`pipeline(items, ...stages)\`, \`phase(title)\`, \`log(message)\`) to spawn subagents in parallel and synthesize the result.
+**Crucially**, dynamic workflows are fully recursive! If a task delegated to an \`agent()\` is still too large, that subagent can itself invoke the \`${formatToolName(DYNAMIC_WORKFLOW_TOOL_NAME)}\` tool to delegate further, creating a deeply recursive tree of workers.
 **Example Script:**
 \`\`\`javascript
 phase('Discovery');
