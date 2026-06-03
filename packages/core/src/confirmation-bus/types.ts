@@ -30,6 +30,8 @@ export enum MessageBusType {
   WORKFLOW_LOG = 'workflow-log',
   WORKFLOW_SPAWN_AGENT = 'workflow-spawn-agent',
   WORKFLOW_AGENT_END = 'workflow-agent-end',
+  WORKFLOW_START = 'workflow-start',
+  WORKFLOW_END = 'workflow-end',
 }
 
 export interface ToolCallsUpdateMessage {
@@ -241,6 +243,14 @@ export interface WorkflowAgentEndMessage {
   data: { label?: string; status: string; result?: unknown; error?: string };
 }
 
+export interface WorkflowStartMessage {
+  type: MessageBusType.WORKFLOW_START;
+}
+
+export interface WorkflowEndMessage {
+  type: MessageBusType.WORKFLOW_END;
+}
+
 export type Message =
   | ToolConfirmationRequest
   | ToolConfirmationResponse
@@ -255,4 +265,6 @@ export type Message =
   | WorkflowPhaseMessage
   | WorkflowLogMessage
   | WorkflowSpawnAgentMessage
-  | WorkflowAgentEndMessage;
+  | WorkflowAgentEndMessage
+  | WorkflowStartMessage
+  | WorkflowEndMessage;

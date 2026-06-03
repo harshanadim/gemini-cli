@@ -67,6 +67,31 @@ export function useWorkflowProgress() {
         const currentPhaseIdx = Math.max(0, newState.phases.length - 1);
 
         switch (message.type) {
+          case MessageBusType.WORKFLOW_START:
+            // Reset state
+            newState.isActive = true;
+            newState.phases = [
+              { title: 'Initialization', agents: [], logs: [] },
+            ];
+            setAgentCounter(0);
+            break;
+
+          case MessageBusType.WORKFLOW_END:
+            // Mark any remaining running agents as errored (aborted)
+            newState.phases = newState.phases.map((phase) => ({
+              ...phase,
+              agents: phase.agents.map((agent) =>
+                agent.status === 'running'
+                  ? {
+                      ...agent,
+                      status: 'error',
+                      error: 'Workflow ended abruptly',
+                    }
+                  : agent,
+              ),
+            }));
+            break;
+
           case MessageBusType.WORKFLOW_PHASE:
             newState.phases = [
               ...newState.phases,
@@ -137,12 +162,16 @@ export function useWorkflowProgress() {
       });
     };
 
+    messageBus.subscribe(MessageBusType.WORKFLOW_START, handleMessage);
+    messageBus.subscribe(MessageBusType.WORKFLOW_END, handleMessage);
     messageBus.subscribe(MessageBusType.WORKFLOW_PHASE, handleMessage);
     messageBus.subscribe(MessageBusType.WORKFLOW_LOG, handleMessage);
     messageBus.subscribe(MessageBusType.WORKFLOW_SPAWN_AGENT, handleMessage);
     messageBus.subscribe(MessageBusType.WORKFLOW_AGENT_END, handleMessage);
 
     return () => {
+      messageBus.unsubscribe(MessageBusType.WORKFLOW_START, handleMessage);
+      messageBus.unsubscribe(MessageBusType.WORKFLOW_END, handleMessage);
       messageBus.unsubscribe(MessageBusType.WORKFLOW_PHASE, handleMessage);
       messageBus.unsubscribe(MessageBusType.WORKFLOW_LOG, handleMessage);
       messageBus.unsubscribe(

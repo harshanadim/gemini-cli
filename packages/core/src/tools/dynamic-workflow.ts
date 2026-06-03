@@ -17,6 +17,8 @@ import { GeminiWorkflowContext } from '../workflow/context.js';
 import { WorkflowSandbox } from '../workflow/sandbox.js';
 import { DYNAMIC_WORKFLOW_TOOL_NAME } from './tool-names.js';
 
+import { MessageBusType } from '../confirmation-bus/types.js';
+
 export class DynamicWorkflowTool extends BaseDeclarativeTool<
   { script: string },
   ToolResult
@@ -85,6 +87,10 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
     const workflowContext = new GeminiWorkflowContext(this.context);
     const globals = workflowContext.getGlobals();
 
+    this.messageBus.emit(MessageBusType.WORKFLOW_START, {
+      type: MessageBusType.WORKFLOW_START,
+    });
+
     try {
       const result = await WorkflowSandbox.execute(this.params.script, globals);
       const outputStr =
@@ -106,6 +112,10 @@ export class DynamicWorkflowInvocation extends BaseToolInvocation<
         returnDisplay: `Workflow execution failed: ${error}`,
         error: error instanceof Error ? error : new Error(String(error)),
       };
+    } finally {
+      this.messageBus.emit(MessageBusType.WORKFLOW_END, {
+        type: MessageBusType.WORKFLOW_END,
+      });
     }
   }
 }
