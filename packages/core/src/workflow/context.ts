@@ -62,10 +62,6 @@ export class GeminiWorkflowContext {
           ...baseDef,
           name: `workflow_subagent_${randomUUID().substring(0, 8)}`,
           displayName: opts?.label ?? 'Workflow Subagent',
-          promptConfig: {
-            ...baseDef.promptConfig,
-            query,
-          },
           outputConfig: opts?.schema
             ? {
                 outputName: 'result',
