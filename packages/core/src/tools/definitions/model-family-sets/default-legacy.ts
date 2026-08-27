@@ -26,6 +26,7 @@ import {
   ENTER_PLAN_MODE_TOOL_NAME,
   READ_MCP_RESOURCE_TOOL_NAME,
   LIST_MCP_RESOURCES_TOOL_NAME,
+  DYNAMIC_WORKFLOW_TOOL_NAME,
   // Shared parameter names
   PARAM_FILE_PATH,
   PARAM_DIR_PATH,
@@ -759,6 +760,23 @@ The agent did not use the todo list because this task could be completed by a ti
         },
       },
       required: [],
+    },
+  },
+
+  run_dynamic_workflow: {
+    name: DYNAMIC_WORKFLOW_TOOL_NAME,
+    description:
+      'Executes a JavaScript orchestration script to parallelize and coordinate multiple subagents.',
+    parametersJsonSchema: {
+      type: 'object',
+      properties: {
+        script: {
+          type: 'string',
+          description:
+            'The JavaScript code to execute. Must be valid JavaScript that orchestrates tasks via the injected SDK (agent, parallel, etc).',
+        },
+      },
+      required: ['script'],
     },
   },
 };

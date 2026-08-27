@@ -26,6 +26,13 @@ export enum MessageBusType {
   ASK_USER_REQUEST = 'ask-user-request',
   ASK_USER_RESPONSE = 'ask-user-response',
   SUBAGENT_ACTIVITY = 'subagent-activity',
+  WORKFLOW_PHASE = 'workflow-phase',
+  WORKFLOW_LOG = 'workflow-log',
+  WORKFLOW_SPAWN_AGENT = 'workflow-spawn-agent',
+  WORKFLOW_AGENT_END = 'workflow-agent-end',
+  WORKFLOW_START = 'workflow-start',
+  WORKFLOW_END = 'workflow-end',
+  WORKFLOW_CANCEL_REQUEST = 'workflow-cancel-request',
 }
 
 export interface ToolCallsUpdateMessage {
@@ -217,6 +224,57 @@ export interface SubagentActivityMessage {
   activity: SubagentActivityItem;
 }
 
+export interface WorkflowPhaseMessage {
+  type: MessageBusType.WORKFLOW_PHASE;
+  workflowId: string;
+  parentId?: string;
+  data: { title: string };
+}
+
+export interface WorkflowLogMessage {
+  type: MessageBusType.WORKFLOW_LOG;
+  workflowId: string;
+  parentId?: string;
+  data: { message: string };
+}
+
+export interface WorkflowSpawnAgentMessage {
+  type: MessageBusType.WORKFLOW_SPAWN_AGENT;
+  workflowId: string;
+  parentId?: string;
+  data: { agentId: string; label?: string; status: string };
+}
+
+export interface WorkflowAgentEndMessage {
+  type: MessageBusType.WORKFLOW_AGENT_END;
+  workflowId: string;
+  parentId?: string;
+  data: {
+    agentId: string;
+    label?: string;
+    status: string;
+    result?: unknown;
+    error?: string;
+  };
+}
+
+export interface WorkflowStartMessage {
+  type: MessageBusType.WORKFLOW_START;
+  workflowId: string;
+  parentId?: string;
+}
+
+export interface WorkflowEndMessage {
+  type: MessageBusType.WORKFLOW_END;
+  workflowId: string;
+  parentId?: string;
+}
+
+export interface WorkflowCancelRequestMessage {
+  type: MessageBusType.WORKFLOW_CANCEL_REQUEST;
+  workflowId?: string;
+}
+
 export type Message =
   | ToolConfirmationRequest
   | ToolConfirmationResponse
@@ -227,4 +285,11 @@ export type Message =
   | AskUserRequest
   | AskUserResponse
   | ToolCallsUpdateMessage
-  | SubagentActivityMessage;
+  | SubagentActivityMessage
+  | WorkflowPhaseMessage
+  | WorkflowLogMessage
+  | WorkflowSpawnAgentMessage
+  | WorkflowAgentEndMessage
+  | WorkflowStartMessage
+  | WorkflowEndMessage
+  | WorkflowCancelRequestMessage;

@@ -50,6 +50,8 @@ import { AskUserTool } from '../tools/ask-user.js';
 import { UpdateTopicTool } from '../tools/topicTool.js';
 import { TopicState } from './topicState.js';
 import { AgentTool } from '../agents/agent-tool.js';
+import { DynamicWorkflowTool } from '../tools/dynamic-workflow.js';
+import { GlobalWorkflowManager } from '../workflow/manager.js';
 import { ExitPlanModeTool } from '../tools/exit-plan-mode.js';
 import { EnterPlanModeTool } from '../tools/enter-plan-mode.js';
 import {
@@ -746,6 +748,7 @@ export interface ConfigParameters {
   };
   vertexAiRouting?: VertexAiRoutingConfig;
   logRagSnippets?: boolean;
+  maxWorkflowSubagents?: number;
 }
 
 export class Config implements McpContext, AgentLoopContext {
@@ -796,6 +799,10 @@ export class Config implements McpContext, AgentLoopContext {
   private readonly extensionsEnabled: boolean;
   private mcpServers: Record<string, MCPServerConfig> | undefined;
   private readonly mcpEnablementCallbacks?: McpEnablementCallbacks;
+
+  private readonly maxWorkflowSubagents: number;
+  private readonly globalWorkflowManager: GlobalWorkflowManager;
+
   private userMemory: string | HierarchicalMemory;
   private geminiMdFileCount: number;
   private geminiMdFilePaths: string[];
@@ -991,6 +998,10 @@ export class Config implements McpContext, AgentLoopContext {
     this.clientName = params.clientName;
     this._clientVersion = params.clientVersion ?? 'unknown';
     this.approvedPlanPath = undefined;
+    this.maxWorkflowSubagents = params.maxWorkflowSubagents ?? 20;
+    this.globalWorkflowManager = new GlobalWorkflowManager(
+      this.maxWorkflowSubagents,
+    );
 
     this.embeddingModel =
       params.embeddingModel ?? DEFAULT_GEMINI_EMBEDDING_MODEL;
@@ -2263,6 +2274,14 @@ export class Config implements McpContext, AgentLoopContext {
 
   getPromptRegistry(): PromptRegistry {
     return this._promptRegistry;
+  }
+
+  getMaxWorkflowSubagents(): number {
+    return this.maxWorkflowSubagents;
+  }
+
+  getGlobalWorkflowManager(): GlobalWorkflowManager {
+    return this.globalWorkflowManager;
   }
 
   getSkillManager(): SkillManager {
@@ -4062,6 +4081,11 @@ export class Config implements McpContext, AgentLoopContext {
     // Register Subagent Tool
     maybeRegister(AgentTool, () =>
       registry.registerTool(new AgentTool(this, this.messageBus)),
+    );
+
+    // Register Dynamic Workflow Tool
+    maybeRegister(DynamicWorkflowTool, () =>
+      registry.registerTool(new DynamicWorkflowTool(this, this.messageBus)),
     );
 
     await registry.discoverAllTools();

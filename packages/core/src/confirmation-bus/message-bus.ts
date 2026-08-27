@@ -18,6 +18,8 @@ export class MessageBus extends EventEmitter {
     Map<string, () => void>
   >();
 
+  readonly subagentName?: string;
+
   constructor(
     private readonly policyEngine: PolicyEngine,
     private readonly debug = false,
@@ -51,6 +53,8 @@ export class MessageBus extends EventEmitter {
    */
   derive(subagentName: string): MessageBus {
     const bus = new MessageBus(this.policyEngine, this.debug, false);
+    // @ts-expect-error Assign to readonly property for derived bus
+    bus.subagentName = subagentName;
 
     bus.publish = async (message: Message) => {
       if (message.type === MessageBusType.TOOL_CONFIRMATION_REQUEST) {

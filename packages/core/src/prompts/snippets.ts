@@ -33,6 +33,7 @@ import {
   TRACKER_LIST_TASKS_TOOL_NAME,
   TRACKER_UPDATE_TASK_TOOL_NAME,
   AGENT_TOOL_NAME,
+  DYNAMIC_WORKFLOW_TOOL_NAME,
 } from '../tools/tool-names.js';
 import type { HierarchicalMemory } from '../config/memory.js';
 import { DEFAULT_CONTEXT_FILENAME } from '../tools/memoryTool.js';
@@ -297,6 +298,19 @@ When you delegate, the sub-agent's entire execution is consolidated into a singl
 - **Repetitive Batch Tasks:** Tasks involving more than 3 files or repeated steps (e.g., "Add license headers to all files in src/", "Fix all lint errors in the project").
 - **High-Volume Output:** Commands or tools expected to return large amounts of data (e.g., verbose builds, exhaustive file searches).
 - **Speculative Research:** Investigations that require many "trial and error" steps before a clear path is found.
+
+### Dynamic Workflows
+For massive fan-out tasks or complex multi-step orchestration across dozens of files, use the ${formatToolName(DYNAMIC_WORKFLOW_TOOL_NAME)} tool. You can write a JavaScript script using the injected SDK (\`agent(prompt, opts)\`, \`parallel(thunks)\`, \`pipeline(items, ...stages)\`, \`phase(title)\`, \`log(message)\`) to spawn subagents in parallel and synthesize the result.
+**Crucially**, dynamic workflows are fully recursive! If a task delegated to an \`agent()\` is still too large, that subagent can itself invoke the \`${formatToolName(DYNAMIC_WORKFLOW_TOOL_NAME)}\` tool to delegate further, creating a deeply recursive tree of workers.
+**Example Script:**
+\`\`\`javascript
+phase('Discovery');
+const files = await agent('List all ts files', { label: 'List Files', schema: { type: 'array', items: { type: 'string' } } });
+
+phase('Processing');
+const results = await parallel(files.map(f => () => agent('Audit ' + f + ' for security issues.', { label: 'Audit ' + f })));
+return results;
+\`\`\`
 
 **Assertive Action:** Continue to handle "surgical" tasks directly—simple reads, single-file edits, or direct questions that can be resolved in 1-2 turns. Delegation is an efficiency tool, not a way to avoid direct action when it is the fastest path.
 

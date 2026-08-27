@@ -21,6 +21,7 @@ import { useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { MAX_GEMINI_MESSAGE_LINES } from '../constants.js';
 import { useConfirmingTool } from '../hooks/useConfirmingTool.js';
 import { ToolConfirmationQueue } from './ToolConfirmationQueue.js';
+import { WorkflowProgress } from './WorkflowProgress.js';
 import { appEvents, AppEvent } from '../../utils/events.js';
 
 const MemoizedHistoryItemDisplay = memo(HistoryItemDisplay);
@@ -183,6 +184,7 @@ export const MainContent = () => {
             />
           );
         })}
+        <WorkflowProgress key="workflow-progress" />
         {showConfirmationQueue && confirmingTool && (
           <ToolConfirmationQueue
             key="confirmation-queue"

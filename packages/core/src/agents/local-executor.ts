@@ -88,6 +88,7 @@ import {
   COMPLETE_TASK_TOOL_NAME,
   ACTIVATE_SKILL_TOOL_NAME,
   UPDATE_TOPIC_TOOL_NAME,
+  DYNAMIC_WORKFLOW_TOOL_NAME,
 } from '../tools/definitions/base-declarations.js';
 
 /** A callback function to report on agent activity. */
@@ -191,8 +192,12 @@ export class LocalAgentExecutor<TOutput extends z.ZodTypeAny> {
 
     const registerToolInstance = (tool: AnyDeclarativeTool) => {
       // Check if the tool is an agent tool to prevent recursion.
-      // We do not allow agents to call other agents.
-      if (tool.kind === Kind.Agent) {
+      // We do not allow agents to call other agents directly,
+      // but we DO allow dynamic workflows (which handles its own global recursion limits).
+      if (
+        tool.kind === Kind.Agent &&
+        tool.name !== DYNAMIC_WORKFLOW_TOOL_NAME
+      ) {
         return;
       }
 

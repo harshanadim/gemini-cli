@@ -99,6 +99,7 @@ export {
   TOPIC_PARAM_TITLE,
   TOPIC_PARAM_SUMMARY,
   TOPIC_PARAM_STRATEGIC_INTENT,
+  DYNAMIC_WORKFLOW_TOOL_NAME,
 } from './base-declarations.js';
 
 // Re-export sets for compatibility
@@ -286,4 +287,11 @@ export const LIST_MCP_RESOURCES_DEFINITION: ToolDefinition = {
     return DEFAULT_LEGACY_SET.list_mcp_resources;
   },
   overrides: (modelId) => getToolSet(modelId).list_mcp_resources,
+};
+
+export const DYNAMIC_WORKFLOW_DEFINITION: ToolDefinition = {
+  get base() {
+    return DEFAULT_LEGACY_SET.run_dynamic_workflow;
+  },
+  overrides: (modelId) => getToolSet(modelId).run_dynamic_workflow,
 };
